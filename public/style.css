@@ -149,6 +149,17 @@ button:hover {
     margin-top: 75px;
 }
 
+/* Loader */
+.loader-container {
+    width: 100%;
+    height: 100%;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    font-size: 50px;
+    color: #1db954;
+}
+
 /* Player Container */
 /* Player */
 .player {
