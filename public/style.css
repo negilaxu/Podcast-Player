@@ -46,6 +46,77 @@ body {
     position: absolute;
     top: 60px;
     left: 20px;
+    display: flex;
+}
+
+select, input, button {
+    margin: 5px;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+input {
+    width: 300px;
+}
+
+.custom-select {
+    width: 300px;
+    height: 40px;
+    position: relative;
+    margin-right: 10px;
+}
+
+.custom-select select {
+    appearance: none;
+    width: 100%;
+    background: #fff;
+    cursor: pointer;
+    height: 40px;
+}
+
+.custom-select::before,
+.custom-select::after {
+    position: absolute;
+    content: "";
+    right: 10px;
+    pointer-events: none;
+}
+
+.custom-select::before {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #000;
+    top: 40%;
+}
+
+.custom-select::after {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #000;
+    top: 65%;
+}
+
+.search-buttons {
+    display: flex;
+}
+
+button {
+    cursor: pointer;
+    background: #000;
+    color: rgb(220, 220, 220);
+    border: none;
+    min-width: 100px;
+}
+
+#resetButton {
+    background: rgb(190, 14, 14);
+    color: #fff;
+}
+
+button:hover {
+    filter: brightness(1.2);
 }
 
 /* Main Container */

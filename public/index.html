@@ -21,7 +21,19 @@
     <div class="page-wrapper">
         <!-- Search Container -->
         <div class="search-container">
+            <!-- Search History -->
+            <div class="custom-select">
+                <select name="searchHistory" id="searchHistory" title="searchHistory">
+                    <option value="">Select a Previous Search</option>
+                </select>
+            </div>
+            <!-- Search Input -->
             <input type="text" name="search" id="searchInput" placeholder="Search by Podcast / Topic">
+            <!-- Search Buttons -->
+            <div class="search-buttons">
+                <button type="button" id="searchButton">Search</button>
+                <button type="button" id="resetButton">Clear History</button>
+            </div>
         </div>
 
         <!-- Main Container -->
@@ -31,7 +43,7 @@
         <!-- Player Container  -->
         <div class="player-container">
             <div class="player"></div>
-            
+
             <div class="queue"></div>
         </div>
     </div>
