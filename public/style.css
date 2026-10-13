@@ -49,7 +49,9 @@ body {
     display: flex;
 }
 
-select, input, button {
+select,
+input,
+button {
     margin: 5px;
     padding: 10px;
     font-size: 16px;
@@ -224,6 +226,125 @@ button:hover {
     border-radius: 20px;
     box-shadow: 0 15px 30px 5px rgba(0, 0, 0, 0.3);
     position: relative;
+}
+
+.img-container {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    top: -50px;
+    margin: 0 auto;
+}
+
+.img-container img {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+    box-shadow: 0 5px 30px 5px rgba(0, 0, 0, 0.5);
+}
+
+.title-container {
+    box-sizing: border-box;
+    padding: 10px;
+    position: relative;
+    top: -20px;
+}
+
+.title-container h2 {
+    font-size: 18px;
+    text-align: center;
+    margin: 0;
+}
+
+.title-container h3 {
+    font-size: 16px;
+    text-align: center;
+    font-weight: 400;
+    margin: 5px 0 0;
+}
+
+/* Controls Container */
+.controls-container {
+    position: absolute;
+    width: 100%;
+    bottom: 10px;
+}
+
+/* Progress */
+.progress-container {
+    background: #fff;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 40px 20px;
+    height: 4px;
+    width: 90%;
+}
+
+.progress {
+    background: #242323;
+    border-radius: 5px;
+    height: 100%;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.duration-wrapper {
+    position: relative;
+    top: -25px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Controls */
+.player-controls {
+    position: relative;
+    top: -15px;
+    left: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.player-controls .fas {
+    font-size: 30px;
+    color: rgb(129, 129, 129);
+    margin-right: 30px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.player-controls .fas:hover {
+    filter: brightness(80%);
+}
+
+.main-button {
+    position: relative;
+    left: 3px;
+}
+
+/* Media Query: iPhone (Vertical) */
+@media screen and (max-width: 376px) {
+    .player-container {
+        width: 95vw;
+    }
+
+    .img-container {
+        left: 29px;
+    }
+
+    h2 {
+        font-size: 20px;
+    }
+
+    h3 {
+        font-size: 15px;
+    }
+
+    .player-controls {
+        top: -10px;
+        left: 100px;
+    }
 }
 
 /* Queue */
