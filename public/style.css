@@ -4,6 +4,12 @@ html {
     box-sizing: border-box;
 }
 
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+}
+
 body {
     margin: 0;
     min-height: 100vh;
@@ -39,6 +45,10 @@ body {
     position: relative;
     top: 1px;
     left: 5px;
+}
+
+.nav-list {
+    display: none;
 }
 
 /* Search Container */
@@ -323,30 +333,6 @@ button:hover {
     left: 3px;
 }
 
-/* Media Query: iPhone (Vertical) */
-@media screen and (max-width: 376px) {
-    .player-container {
-        width: 95vw;
-    }
-
-    .img-container {
-        left: 29px;
-    }
-
-    h2 {
-        font-size: 20px;
-    }
-
-    h3 {
-        font-size: 15px;
-    }
-
-    .player-controls {
-        top: -10px;
-        left: 100px;
-    }
-}
-
 /* Queue */
 .queue {
     background: #e7e7e7;
@@ -391,7 +377,7 @@ button:hover {
     margin: 0;
 }
 
-.mb-10{
+.mb-10 {
     margin-bottom: 10px;
 }
 
@@ -402,11 +388,180 @@ button:hover {
 }
 
 .icon-container {
-   font-size: 25px; 
-   color: rgb(95, 95, 95);
-   cursor: pointer;
+    font-size: 25px;
+    color: rgb(95, 95, 95);
+    cursor: pointer;
 }
 
 .icon-container i:hover {
     filter: brightness(60%);
+}
+
+/* Media Queries: Smartphone / Tablet */
+@media (max-width: 1025px) {
+
+    html,
+    body {
+        overflow-x: hidden;
+    }
+
+    /* Navigation */
+    .nav-wrapper {
+        position: fixed;
+        z-index: 10;
+    }
+
+    .nav {
+        top: 14px;
+    }
+
+    .nav-title {
+        font-size: 20px;
+    }
+
+    .nav-list {
+        display: flex;
+        position: relative;
+        top: 3px;
+        left: -4px;
+    }
+
+    .nav-list span {
+        font-size: 18px;
+        color: white;
+        position: relative;
+        left: 25px;
+        padding-bottom: 3px;
+    }
+
+    .nav-list span:first-child {
+        margin-right: 10px;
+    }
+
+    .nav-list .selected {
+        border-bottom: 2px solid #1DB954;
+    }
+
+    /* Containers */
+    .page-wrapper {
+        flex-direction: column;
+        margin-top: 50px;
+    }
+
+    .search-container {
+        position: relative;
+        flex-direction: column;
+        left: 5px;
+        top: 10px;
+    }
+
+    .custom-select {
+        width: calc(100% - 20px);
+        margin-right: unset;
+        margin-bottom: 10px;
+    }
+
+    input {
+        width: calc(100% - 40px);
+    }
+
+    .search-buttons {
+        width: calc(100% - 10px);
+    }
+
+    button {
+        width: 50%;
+    }
+
+    .main-container {
+        width: calc(100% - 20px);
+        margin-top: 15px;
+        height: calc(100% - 180px);
+        padding: 5px 10px;
+    }
+
+    /* Cards Container */
+    .cards-container {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        gap: 10px;
+    }
+
+    .card {
+        width: 100%;
+    }
+
+    /* Player */
+    .player-container {
+        position: relative;
+        margin-top: unset;
+        width: 100%;
+        height: 100%;
+        display: none;
+        justify-content: center;
+    }
+
+    .player {
+        height: 380px;
+        width: calc(100% - 20px);
+        top: 10px;
+    }
+
+    .title-container {
+        top: -30px;
+    }
+
+    .queue {
+        margin-top: unset;
+        height: calc(100% - 480px);
+        width: calc(100% - 20px);
+        position: relative;
+        top: 30px;
+    }
+}
+
+/* Media Queries: Smartphone Vertical */
+@media (max-width: 500px) {
+    .card {
+        height: auto;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .card img {
+        width: 100%;
+    }
+
+    .card-content {
+        width: auto;
+        padding: 10px;
+        font-size: 80%;
+        overflow-y: unset;
+    }
+}
+
+/* Smartphone Vertical: (With Browser UI) */
+@media (max-width: 500px) and (max-height: 675px) {
+    .player {
+        height: 300px;
+    }
+
+    .img-container {
+        height: 100px;
+        width: 100px;
+        top: -25px;
+    }
+
+    .title-container {
+        top: -20px;
+    }
+
+    .controls-container {
+        bottom: 5px;
+    }
+
+    .queue {
+        height: calc(100% - 360px);
+        top: 70px;
+    }
 }
