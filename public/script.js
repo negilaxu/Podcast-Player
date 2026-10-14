@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
   const searchButton = document.getElementById("searchButton");
   const resetButton = document.getElementById("resetButton");
+  const loader = document.getElementById("loader");
   const responseContainer = document.getElementById("response");
 
   // Reset search history
@@ -68,6 +69,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load search history when page loads
   loadSearchHistory();
 
+  // Format date
+  function formatDate(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString();
+  }
+
+  // Show loading animation
+  function showLoader() {
+    loader.style.display = "flex";
+    responseContainer.style.display = "none";
+  }
+
+  // Hide loading animation
+  function hideLoader() {
+    loader.style.display = "none";
+    responseContainer.style.display = "flex";
+  }
+
   // Search Podcasts
   async function searchPodcast() {
     const searchTerm = searchInput.value.trim();
@@ -77,7 +96,10 @@ document.addEventListener("DOMContentLoaded", () => {
       loadSearchHistory();
     } else {
       responseContainer.innerText = "Please enter a podcast title.";
+      return;
     }
+
+    showLoader();
 
     responseContainer.textContent = "";
 
@@ -85,16 +107,58 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(
         `/api/search?q=${encodeURIComponent(searchTerm)}`,
       );
-        const data = await response.json();
-        
-        if (data.feeds && data.feeds.length > 0) {
-            console.log("Results", data);
-        } else {
-            responseContainer.innerText = "No Results Found";
-        }
+      const data = await response.json();
+
+      if (data.feeds && data.feeds.length > 0) {
+        data.feeds.forEach((podcast) => {
+          const card = createCard(podcast);
+          responseContainer.appendChild(card);
+        });
+      } else {
+        responseContainer.innerText = "No Results Found";
+      }
     } catch (error) {
       responseContainer.innerText = `Error: ${error.message}`;
+    } finally {
+      hideLoader();
     }
+  }
+
+  // Creating Podcast Card
+  function createCard(podcast) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const img = document.createElement("img");
+    img.src = podcast.image || "./default-podcast.png";
+    img.alt = podcast.title;
+
+    const content = document.createElement("div");
+    content.className = "card-content";
+
+    const title = document.createElement("h3");
+    title.innerText = podcast.title;
+
+    const description = document.createElement("p");
+    description.innerText = podcast.description;
+
+    const episodeCount = document.createElement("p");
+    episodeCount.className = "episode-count";
+    episodeCount.innerText = `Episodes: ${podcast.episodeCount}`;
+
+    const pubDate = document.createElement("p");
+    pubDate.className = "pub-date";
+    pubDate.innerText = `Newest Episode: ${podcast.newestItemPubDate ? formatDate(podcast.newestItemPubDate) : "Not Available"}`;
+
+    content.appendChild(title);
+    content.appendChild(description);
+    content.appendChild(episodeCount);
+    content.appendChild(pubDate);
+
+    card.appendChild(img);
+    card.appendChild(content);
+
+    return card;
   }
 
   // Navigation
