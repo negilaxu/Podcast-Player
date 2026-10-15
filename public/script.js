@@ -6,6 +6,28 @@ document.addEventListener("DOMContentLoaded", () => {
   const loader = document.getElementById("loader");
   const responseContainer = document.getElementById("response");
 
+  function getSavedSearches() {
+    const savedSearches = localStorage.getItem("searchHistory");
+    if (!savedSearches) {
+      return [];
+    }
+
+    try {
+      const parsedSearches = JSON.parse(savedSearches);
+      if (!Array.isArray(parsedSearches)) {
+        throw new Error("Search history must be an array");
+      }
+
+      return parsedSearches.filter(
+        (searchTerm) => typeof searchTerm === "string",
+      );
+    } catch (error) {
+      console.warn("Invalid search history was cleared:", error.message);
+      localStorage.removeItem("searchHistory");
+      return [];
+    }
+  }
+
   // Reset search history
   function resetHistory() {
     searchHistory.innerText = "";
@@ -17,8 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load Search History from local storage
   function loadSearchHistory() {
-    const savedSearches =
-      JSON.parse(localStorage.getItem("searchHistory")) || [];
+    const savedSearches = getSavedSearches();
     resetHistory();
     savedSearches.forEach((searchTerm) => {
       const option = document.createElement("option");
@@ -39,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Save the search history to local storage
   function saveSearchHistory(searchTerm) {
-    let savedSearches = JSON.parse(localStorage.getItem("searchHistory")) || [];
+    const savedSearches = getSavedSearches();
     if (!savedSearches.includes(searchTerm)) {
       savedSearches.push(searchTerm);
       localStorage.setItem("searchHistory", JSON.stringify(savedSearches));
@@ -85,6 +106,72 @@ document.addEventListener("DOMContentLoaded", () => {
   function hideLoader() {
     loader.style.display = "none";
     responseContainer.style.display = "flex";
+    responseContainer.scrollTo({
+      top: 0,
+    });
+  }
+
+  // Handle fallback image
+  function handleFallbackImage(img) {
+    const fallbackImage = "./default-podcast.png";
+    img.src = fallbackImage;
+    return img;
+  }
+
+  // Set up to load podcast / episode images
+  function handleImageLoad(limit) {
+    const images = responseContainer.getElementsByTagName("img");
+    let imagesToLoad = Math.min(images.length, limit);
+
+    if (imagesToLoad === 0) {
+      hideLoader();
+      return;
+    }
+
+    Array.from(images)
+      .slice(0, limit)
+      .forEach((img) => {
+        img.onload = img.onerror = () => {
+          imagesToLoad--;
+          if (img.complete && !img.naturalWidth) {
+            img = handleFallbackImage(img);
+          }
+          if (imagesToLoad === 0) {
+            hideLoader();
+            lazyLoadRemainingImages(limit);
+          }
+        };
+      });
+  }
+
+  // Lazy load images after initial load
+  function lazyLoadRemainingImages(start) {
+    const remainingImages = Array.from(
+      responseContainer.getElementsByTagName("img"),
+    ).slice(start);
+
+    const lazyLoadObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          let img = entry.target;
+          if (img.dataset.src) {
+            img.src = img.dataset.src;
+            img.onLoad = img.onerror = () => {
+              if (img.complete && !img.naturalWidth) {
+                img = handleFallbackImage(img);
+              }
+              lazyLoadObserver.unobserveb(img);
+            };
+          } else {
+            img = handleFallbackImage(img);
+            lazyLoadObserver.unobserve(img);
+          }
+        }
+      });
+    });
+    remainingImages.forEach((img) => {
+      lazyLoadObserver.observe(img);
+    });
   }
 
   // Search Podcasts
@@ -103,6 +190,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     responseContainer.textContent = "";
 
+    const titles = new Set();
+
     try {
       const response = await fetch(
         `/api/search?q=${encodeURIComponent(searchTerm)}`,
@@ -110,24 +199,31 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
 
       if (data.feeds && data.feeds.length > 0) {
-        data.feeds.forEach((podcast) => {
-          const card = createCard(podcast);
-          responseContainer.appendChild(card);
+        data.feeds.forEach((podcast, index) => {
+          if (podcast.episodeCount > 0 && !titles.has(podcast.title)) {
+            titles.add(podcast.title);
+            const card = createCard(podcast);
+            responseContainer.appendChild(card);
+            if (index >= 25) {
+              card.querySelector("img").dataset.src =
+                card.querySelector("img").src;
+              card.querySelector("img").src = "";
+            }
+          }
+          handleImageLoad(25);
         });
       } else {
         responseContainer.innerText = "No Results Found";
       }
     } catch (error) {
       responseContainer.innerText = `Error: ${error.message}`;
-    } finally {
-      hideLoader();
     }
   }
 
   // Creating Podcast Card
   function createCard(podcast) {
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = "card pointer";
 
     const img = document.createElement("img");
     img.src = podcast.image || "./default-podcast.png";
@@ -154,6 +250,96 @@ document.addEventListener("DOMContentLoaded", () => {
     content.appendChild(description);
     content.appendChild(episodeCount);
     content.appendChild(pubDate);
+
+    card.appendChild(img);
+    card.appendChild(content);
+
+    card.addEventListener("click", () =>
+      loadEpisodes(podcast.itunesId, podcast.episodeCount),
+    );
+
+    return card;
+  }
+
+  // Load Episodes
+  async function loadEpisodes(feedId, count) {
+    if (!feedId) return;
+    showLoader();
+
+    responseContainer.textContent = "";
+
+    try {
+      const response = await fetch(
+        `/api/episodes?feedId=${encodeURIComponent(feedId)}&max=${count}`,
+      );
+      const data = await response.json();
+
+      if (data.items && data.items.length > 0) {
+        data.items.forEach((episode, index) => {
+          const card = createEpisodeCard(episode);
+          responseContainer.appendChild(card);
+
+          if (index >= 25) {
+            card.querySelector("img").dataset.src =
+              card.querySelector("img").src;
+            card.querySelector("img").src = "";
+          }
+        });
+      } else {
+        responseContainer.innerText = "No Results Found";
+      }
+      handleImageLoad(25);
+    } catch (error) {
+      responseContainer.innerText = `Error: ${error.message}`;
+    }
+  }
+
+  // Creating Episode Card
+  function createEpisodeCard(episode) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const img = document.createElement("img");
+    img.src = episode.image || episode.feedImage || "./default-podcast.png";
+    img.alt = episode.title;
+
+    const iconContainer = document.createElement("div");
+    iconContainer.className = "icon-container";
+
+    const playBtnIcon = document.createElement("i");
+    playBtnIcon.className = "fas fa-play-circle mr-10";
+    playBtnIcon.title = "Play Podcast";
+    playBtnIcon.addEventListener("click", () => {
+      console.log("Episode played:", episode);
+    });
+
+    const queueBtnIcon = document.createElement("i");
+    queueBtnIcon.className = "fas fa-list";
+    queueBtnIcon.title = "Add to Queue";
+    queueBtnIcon.addEventListener("click", () => {
+      console.log("Episode queued:", episode);
+    });
+
+    const content = document.createElement("div");
+    content.className = "card-content";
+
+    const title = document.createElement("h3");
+    title.innerText = episode.title;
+
+    const description = document.createElement("p");
+    description.innerHTML = episode.description;
+
+    const pubDate = document.createElement("p");
+    pubDate.className = "pub-date-alt";
+    pubDate.innerText = `Published: ${episode.datePublished ? formatDate(episode.datePublished) : "Not Available"}`;
+
+    iconContainer.appendChild(playBtnIcon);
+    iconContainer.appendChild(queueBtnIcon);
+    iconContainer.appendChild(pubDate);
+
+    content.appendChild(title);
+    content.appendChild(iconContainer);
+    content.appendChild(description);
 
     card.appendChild(img);
     card.appendChild(content);
