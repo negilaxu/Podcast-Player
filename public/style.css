@@ -193,10 +193,16 @@ button:hover {
     display: flex;
 }
 
+.pointer {
+    cursor: pointer;
+}
+
 .card img {
     width: 250px;
-    height: auto;
-    margin: 10px 5px;
+    height: 100%;
+    min-width: 250px;
+    object-fit: cover;
+    margin: 0;
 }
 
 .card-content {
@@ -225,6 +231,12 @@ button:hover {
     font-size: 0.8em;
     color: #777;
     margin-top: 5px;
+}
+
+.card .pub-date-alt {
+    font-size: 0.8em;
+    color: #777;
+    margin: 8px 0 7px 15px;
 }
 
 /* Player Container */
@@ -272,6 +284,29 @@ button:hover {
     text-align: center;
     font-weight: 400;
     margin: 5px 0 0;
+}
+
+.pub-date-alt {
+    margin: 8px 0 7px 15px;
+}
+
+/* Icons */
+.icon-container {
+    display: flex;
+}
+
+.icon-container i {
+    font-size: 30px;
+    color: rgb(95, 95, 95);
+    cursor: pointer;
+}
+
+.icon-container i:hover {
+    filter: brightness(60%);
+}
+
+.mr-10 {
+    margin-right: 10px;
 }
 
 /* Controls Container */
@@ -381,20 +416,13 @@ button:hover {
     margin-bottom: 10px;
 }
 
-.icon-container {
-    display: flex;
+.queue-content .icon-container {
     flex-direction: column;
     justify-content: space-around;
 }
 
-.icon-container {
+.queue-content .icon-container {
     font-size: 25px;
-    color: rgb(95, 95, 95);
-    cursor: pointer;
-}
-
-.icon-container i:hover {
-    filter: brightness(60%);
 }
 
 /* Media Queries: Smartphone / Tablet */
@@ -530,6 +558,8 @@ button:hover {
 
     .card img {
         width: 100%;
+        height: 250px;
+        min-width: 0;
     }
 
     .card-content {
