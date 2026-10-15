@@ -111,69 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Handle fallback image
-  function handleFallbackImage(img) {
-    const fallbackImage = "./default-podcast.png";
-    img.src = fallbackImage;
-    return img;
-  }
-
-  // Set up to load podcast / episode images
-  function handleImageLoad(limit) {
-    const images = responseContainer.getElementsByTagName("img");
-    let imagesToLoad = Math.min(images.length, limit);
-
-    if (imagesToLoad === 0) {
-      hideLoader();
-      return;
-    }
-
-    Array.from(images)
-      .slice(0, limit)
-      .forEach((img) => {
-        img.onload = img.onerror = () => {
-          imagesToLoad--;
-          if (img.complete && !img.naturalWidth) {
-            img = handleFallbackImage(img);
-          }
-          if (imagesToLoad === 0) {
-            hideLoader();
-            lazyLoadRemainingImages(limit);
-          }
-        };
-      });
-  }
-
-  // Lazy load images after initial load
-  function lazyLoadRemainingImages(start) {
-    const remainingImages = Array.from(
-      responseContainer.getElementsByTagName("img"),
-    ).slice(start);
-
-    const lazyLoadObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          let img = entry.target;
-          if (img.dataset.src) {
-            img.src = img.dataset.src;
-            img.onLoad = img.onerror = () => {
-              if (img.complete && !img.naturalWidth) {
-                img = handleFallbackImage(img);
-              }
-              lazyLoadObserver.unobserveb(img);
-            };
-          } else {
-            img = handleFallbackImage(img);
-            lazyLoadObserver.unobserve(img);
-          }
-        }
-      });
-    });
-    remainingImages.forEach((img) => {
-      lazyLoadObserver.observe(img);
-    });
-  }
-
   // Search Podcasts
   async function searchPodcast() {
     const searchTerm = searchInput.value.trim();
@@ -199,24 +136,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
 
       if (data.feeds && data.feeds.length > 0) {
-        data.feeds.forEach((podcast, index) => {
+        data.feeds.forEach((podcast) => {
           if (podcast.episodeCount > 0 && !titles.has(podcast.title)) {
             titles.add(podcast.title);
             const card = createCard(podcast);
             responseContainer.appendChild(card);
-            if (index >= 25) {
-              card.querySelector("img").dataset.src =
-                card.querySelector("img").src;
-              card.querySelector("img").src = "";
-            }
           }
-          handleImageLoad(25);
         });
+        hideLoader();
       } else {
         responseContainer.innerText = "No Results Found";
+        hideLoader();
       }
     } catch (error) {
       responseContainer.innerText = `Error: ${error.message}`;
+      hideLoader();
     }
   }
 
@@ -228,6 +162,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const img = document.createElement("img");
     img.src = podcast.image || "./default-podcast.png";
     img.alt = podcast.title;
+    img.loading = "lazy";
+    img.onerror = () => {
+      img.src = "./default-podcast.png";
+      img.onerror = null;
+    };
 
     const content = document.createElement("div");
     content.className = "card-content";
@@ -267,30 +206,30 @@ document.addEventListener("DOMContentLoaded", () => {
     showLoader();
 
     responseContainer.textContent = "";
+    currentEpisodes = [];
+    currentEpisodeIndex = -1;
+    const episodeLimit = Math.min(Number(count) || 25, 25);
 
     try {
       const response = await fetch(
-        `/api/episodes?feedId=${encodeURIComponent(feedId)}&max=${count}`,
+        `/api/episodes?feedId=${encodeURIComponent(feedId)}&max=${episodeLimit}`,
       );
       const data = await response.json();
 
       if (data.items && data.items.length > 0) {
-        data.items.forEach((episode, index) => {
+        currentEpisodes = data.items;
+        currentEpisodeIndex = -1;
+        data.items.forEach((episode) => {
           const card = createEpisodeCard(episode);
           responseContainer.appendChild(card);
-
-          if (index >= 25) {
-            card.querySelector("img").dataset.src =
-              card.querySelector("img").src;
-            card.querySelector("img").src = "";
-          }
         });
       } else {
         responseContainer.innerText = "No Results Found";
       }
-      handleImageLoad(25);
     } catch (error) {
       responseContainer.innerText = `Error: ${error.message}`;
+    } finally {
+      hideLoader();
     }
   }
 
@@ -302,6 +241,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const img = document.createElement("img");
     img.src = episode.image || episode.feedImage || "./default-podcast.png";
     img.alt = episode.title;
+    img.loading = "lazy";
+    img.onerror = () => {
+      img.src = "./default-podcast.png";
+      img.onerror = null;
+    };
 
     const iconContainer = document.createElement("div");
     iconContainer.className = "icon-container";
@@ -309,8 +253,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const playBtnIcon = document.createElement("i");
     playBtnIcon.className = "fas fa-play-circle mr-10";
     playBtnIcon.title = "Play Podcast";
-    playBtnIcon.addEventListener("click", () => {
-      console.log("Episode played:", episode);
+    playBtnIcon.addEventListener("click", (event) => {
+      event.stopPropagation();
+      loadPodcast(episode);
     });
 
     const queueBtnIcon = document.createElement("i");
@@ -375,139 +320,266 @@ document.addEventListener("DOMContentLoaded", () => {
     searchLink.classList.remove("selected");
     listenLink.classList.add("selected");
   }
+
+  function navigateToDesktop() {
+    searchContainer.style.display = "flex";
+    mainContainer.style.display = "flex";
+    playerContainer.style.display = "flex";
+    queueContainer.style.display = "flex";
+    searchLink.classList.add("selected");
+    listenLink.classList.remove("selected");
+  }
+
+  let lastMobileMode;
+
+  function initializeNavigationMode() {
+    const mobileMode = isMobileDevice();
+    if (mobileMode === lastMobileMode) return;
+
+    lastMobileMode = mobileMode;
+    if (mobileMode) {
+      navigateToPlayer();
+    } else {
+      navigateToDesktop();
+    }
+  }
+
+  // Player ============================= //
+  const image = document.getElementById("image");
+  const title = document.getElementById("title");
+  const datePublished = document.getElementById("datePublished");
+  const player = document.getElementById("player");
+  const currentTimeEl = document.getElementById("current-time");
+  const durationEl = document.getElementById("duration");
+  const progress = document.getElementById("progress");
+  const progressContainer = document.getElementById("progress-container");
+  const durationWrapper = document.querySelector(".duration-wrapper");
+  const prevBtn = document.getElementById("prev");
+  const playBtn = document.getElementById("play");
+  const nextBtn = document.getElementById("next");
+  let currentEpisodes = [];
+  let currentEpisodeIndex = -1;
+
+  // Check if Playing
+  let isPlaying = false;
+
+  // Play
+  async function playPodcast() {
+    isPlaying = true;
+    playBtn.classList.replace("fa-play", "fa-pause");
+    playBtn.setAttribute("title", "Pause");
+    try {
+      await player.play();
+    } catch (error) {
+      isPlaying = false;
+      playBtn.classList.replace("fa-pause", "fa-play");
+      playBtn.setAttribute("title", "Play");
+      console.error("Unable to play episode:", error);
+    }
+  }
+
+  // Pause
+  function pausePodcast() {
+    isPlaying = false;
+    playBtn.classList.replace("fa-pause", "fa-play");
+    playBtn.setAttribute("title", "Play");
+    player.pause();
+  }
+
+  // Play or Pause Event Listener
+  playBtn.addEventListener("click", () =>
+    isPlaying ? pausePodcast() : playPodcast(),
+  );
+
+  // Update Podcast Container
+  function setLoadingState(isLoading) {
+    progress.classList.toggle("loading", isLoading);
+    durationWrapper.style.visibility = isLoading ? "hidden" : "visible";
+    currentTimeEl.style.display = isLoading ? "none" : "inline";
+    durationEl.style.display = isLoading ? "none" : "inline";
+  }
+
+  function loadPodcast(
+    episode,
+    episodeIndex = currentEpisodes.indexOf(episode),
+  ) {
+    if (!episode) return;
+
+    if (isMobileDevice()) {
+      navigateToPlayer();
+    }
+
+    currentEpisodeIndex = episodeIndex;
+    pausePodcast();
+    setLoadingState(true);
+    title.textContent = episode.title;
+    datePublished.textContent = `${episode.datePublished ? formatDate(episode.datePublished) : "Not Available"}`;
+    image.src = episode.image || episode.feedImage || "./default-podcast.png";
+    image.onerror = () => {
+      image.src = "./default-podcast.png";
+      image.onerror = null;
+    };
+    player.src = episode.enclosureUrl || episode.enclosure?.url || "";
+    currentTimeEl.textContent = "0:00";
+    durationEl.textContent = "0:00";
+    progress.style.width = "0%";
+    player.onloadedmetadata = () => {
+      setLoadingState(false);
+      updateTimeDisplay();
+      playPodcast();
+    };
+    player.onerror = () => {
+      setLoadingState(false);
+      isPlaying = false;
+      playBtn.classList.replace("fa-pause", "fa-play");
+      playBtn.setAttribute("title", "Play");
+      console.error("Unable to load episode audio:", episode.enclosureUrl);
+    };
+    player.load();
+  }
+
+  function playNextEpisode() {
+    if (currentEpisodes.length === 0) return;
+
+    const nextIndex =
+      currentEpisodeIndex >= currentEpisodes.length - 1
+        ? 0
+        : currentEpisodeIndex + 1;
+    loadPodcast(currentEpisodes[nextIndex], nextIndex);
+  }
+
+  function seekBy(seconds) {
+    if (!Number.isFinite(player.duration)) return;
+
+    player.currentTime = Math.min(
+      Math.max(player.currentTime + seconds, 0),
+      player.duration,
+    );
+    updateTimeDisplay();
+  }
+
+  function formatTime(time) {
+    if (!Number.isFinite(time) || time < 0) {
+      return "0:00";
+    }
+
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = String(Math.floor(time % 60)).padStart(2, "0");
+
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`;
+    }
+
+    return `${minutes}:${seconds}`;
+  }
+
+  function updateTimeDisplay() {
+    const { duration, currentTime } = player;
+    currentTimeEl.textContent = formatTime(currentTime);
+    durationEl.textContent = formatTime(duration);
+  }
+
+  // Update Progress Bar & Time
+  function updateProgressBar() {
+    const { duration, currentTime } = player;
+    updateTimeDisplay();
+
+    if (Number.isFinite(duration) && duration > 0) {
+      const progressPercent = (currentTime / duration) * 100;
+      progress.style.width = `${progressPercent}%`;
+    }
+  }
+
+  // Set Progress Bar
+  function setProgressBar(e) {
+    const width = this.clientWidth;
+    const clickX = e.offsetX;
+    const { duration } = player;
+    if (Number.isFinite(duration) && duration > 0) {
+      player.currentTime = (clickX / width) * duration;
+    }
+  }
+
+  // Event Listeners
+  prevBtn.addEventListener("click", () => seekBy(-15));
+  nextBtn.addEventListener("click", () => seekBy(15));
+  player.addEventListener("ended", playNextEpisode);
+  player.addEventListener("loadedmetadata", updateTimeDisplay);
+  player.addEventListener("timeupdate", updateProgressBar);
+  progressContainer.addEventListener("click", setProgressBar);
+
+  function isMobileDevice() {
+    return window.innerWidth <= 1025;
+  }
+
+  window.addEventListener("resize", initializeNavigationMode);
+
+  // Save the player state to local storage every 5 seconds
+  setInterval(() => {
+    if (isPlaying) {
+      const playerState = {
+        title: title.textContent,
+        datePublished: datePublished.textContent,
+        currentTime: player.currentTime,
+        duration: player.duration,
+        image: image.src,
+        src: player.src,
+      };
+      localStorage.setItem("playerState", JSON.stringify(playerState));
+    }
+  }, 5000);
+
+  // Load saved player from local storage
+  function loadPlayerState() {
+    const savedPlayerState = localStorage.getItem("playerState");
+    if (!savedPlayerState) return;
+
+    try {
+      const savedState = JSON.parse(savedPlayerState);
+      if (!savedState.src) return;
+
+      title.textContent = savedState.title || "Podcast Title";
+      datePublished.textContent = savedState.datePublished || "Date Published";
+      image.src = savedState.image || "./default-podcast.png";
+      setLoadingState(true);
+
+      const restoreTime = Number(savedState.currentTime);
+      player.src = savedState.src;
+      player.addEventListener(
+        "loadedmetadata",
+        () => {
+          const time =
+            Number.isFinite(restoreTime) && restoreTime >= 0
+              ? Math.min(restoreTime, player.duration)
+              : 0;
+
+          player.currentTime = time;
+          setLoadingState(false);
+          updateTimeDisplay();
+          progress.style.width =
+            player.duration > 0
+              ? `${(time / player.duration) * 100}%`
+              : "0%";
+        },
+        { once: true },
+      );
+      player.addEventListener(
+        "error",
+        () => {
+          setLoadingState(false);
+          localStorage.removeItem("playerState");
+        },
+        { once: true },
+      );
+      player.load();
+    } catch (error) {
+      console.warn("Invalid saved player state was cleared:", error.message);
+      localStorage.removeItem("playerState");
+    }
+  }
+
+  // On startup
+  initializeNavigationMode();
+  loadPlayerState();
 });
-
-/* const image = document.querySelector('img');
-const title = document.getElementById('title');
-const artist = document.getElementById('artist');
-const music = document.querySelector('audio');
-const currentTimeEl = document.getElementById('current-time');
-const durationEl = document.getElementById('duration');
-const progress = document.getElementById('progress');
-const progressContainer = document.getElementById('progress-container');
-const prevBtn = document.getElementById('prev');
-const playBtn = document.getElementById('play');
-const nextBtn = document.getElementById('next');
-
-// Music
-const songs = [
-  {
-    name: 'jacinto-1',
-    displayName: 'Electric Chill Machine',
-    artist: 'Jacinto Design',
-  },
-  {
-    name: 'jacinto-2',
-    displayName: 'Seven Nation Army (Remix)',
-    artist: 'Jacinto Design',
-  },
-  {
-    name: 'jacinto-3',
-    displayName: 'Goodnight, Disco Queen',
-    artist: 'Jacinto Design',
-  },
-  {
-    name: 'metric-1',
-    displayName: 'Front Row (Remix)',
-    artist: 'Metric/Jacinto Design',
-  },
-];
-
-// Check if Playing
-let isPlaying = false;
-
-// Play
-function playSong() {
-  isPlaying = true;
-  playBtn.classList.replace('fa-play', 'fa-pause');
-  playBtn.setAttribute('title', 'Pause');
-  music.play();
-}
-
-// Pause
-function pauseSong() {
-  isPlaying = false;
-  playBtn.classList.replace('fa-pause', 'fa-play');
-  playBtn.setAttribute('title', 'Play');
-  music.pause();
-}
-
-// Play or Pause Event Listener
-playBtn.addEventListener('click', () => (isPlaying ? pauseSong() : playSong()));
-
-// Update DOM
-function loadSong(song) {
-  title.textContent = song.displayName;
-  artist.textContent = song.artist;
-  music.src = `music/${song.name}.mp3`;
-  image.src = `img/${song.name}.jpg`;
-}
-
-// Current Song
-let songIndex = 0;
-
-// Previous Song
-function prevSong() {
-  songIndex--;
-  if (songIndex < 0) {
-    songIndex = songs.length - 1;
-  }
-  loadSong(songs[songIndex]);
-  playSong();
-}
-
-// Next Song
-function nextSong() {
-  songIndex++;
-  if (songIndex > songs.length - 1) {
-    songIndex = 0;
-  }
-  loadSong(songs[songIndex]);
-  playSong();
-}
-
-// On Load - Select First Song
-loadSong(songs[songIndex]);
-
-// Update Progress Bar & Time
-function updateProgressBar(e) {
-  if (isPlaying) {
-    const { duration, currentTime } = e.srcElement;
-    // Update progress bar width
-    const progressPercent = (currentTime / duration) * 100;
-    progress.style.width = `${progressPercent}%`;
-    // Calculate display for duration
-    const durationMinutes = Math.floor(duration / 60);
-    let durationSeconds = Math.floor(duration % 60);
-    if (durationSeconds < 10) {
-      durationSeconds = `0${durationSeconds}`;
-    }
-    // Delay switching duration Element to avoid NaN
-    if (durationSeconds) {
-      durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
-    }
-    // Calculate display for currentTime
-    const currentMinutes = Math.floor(currentTime / 60);
-    let currentSeconds = Math.floor(currentTime % 60);
-    if (currentSeconds < 10) {
-      currentSeconds = `0${currentSeconds}`;
-    }
-    currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
-  }
-}
-
-// Set Progress Bar
-function setProgressBar(e) {
-  const width = this.clientWidth;
-  const clickX = e.offsetX;
-  const { duration } = music;
-  music.currentTime = (clickX / width) * duration;
-}
-
-// Event Listeners
-prevBtn.addEventListener('click', prevSong);
-nextBtn.addEventListener('click', nextSong);
-music.addEventListener('ended', nextSong);
-music.addEventListener('timeupdate', updateProgressBar);
-progressContainer.addEventListener('click', setProgressBar);
- */
