@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const resetButton = document.getElementById("resetButton");
   const loader = document.getElementById("loader");
   const responseContainer = document.getElementById("response");
+  const queueContainer = document.querySelector(".queue");
 
   function getSavedSearches() {
     const savedSearches = localStorage.getItem("searchHistory");
@@ -263,6 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
     queueBtnIcon.title = "Add to Queue";
     queueBtnIcon.addEventListener("click", () => {
       console.log("Episode queued:", episode);
+      addToQueue(episode);
     });
 
     const content = document.createElement("div");
@@ -292,13 +294,65 @@ document.addEventListener("DOMContentLoaded", () => {
     return card;
   }
 
+  // Add item to queue
+  function addToQueue(episode) {
+    const card = document.createElement("div");
+    card.className = "queue-item";
+    const img = document.createElement("img");
+    img.src = episode.image || episode.feedImage || "./default-podcast.png";
+    img.alt = episode.title;
+    img.loading = "lazy";
+    img.onerror = () => {
+      img.src = "./default-podcast.png";
+      img.onerror = null;
+    };
+
+    const content = document.createElement("div");
+    content.className = "queue-content";
+
+    const title = document.createElement("h3");
+    title.innerText = episode.title;
+
+    const iconContainer = document.createElement("div");
+    iconContainer.className = "icon-container";
+
+    const playBtnIcon = document.createElement("i");
+    playBtnIcon.className = "fas fa-play-circle mb-10";
+    playBtnIcon.title = "Play Podcast";
+    playBtnIcon.addEventListener("click", (event) => {
+      event.stopPropagation();
+      loadPodcast(episode);
+    });
+
+    const removeBtnIcon = document.createElement("i");
+    removeBtnIcon.className = "fas fa-trash-alt";
+    removeBtnIcon.title = "Remove from Queue";
+    removeBtnIcon.addEventListener("click", () => {
+      console.log("Episode removed:", episode);
+    });
+
+    const pubDate = document.createElement("p");
+    pubDate.className = "pub-date-alt";
+    pubDate.innerText = `Published: ${episode.datePublished ? formatDate(episode.datePublished) : "Not Available"}`;
+
+    iconContainer.appendChild(playBtnIcon);
+    iconContainer.appendChild(removeBtnIcon);
+
+    content.appendChild(title);
+    content.appendChild(iconContainer);
+
+    card.appendChild(img);
+    card.appendChild(content);
+
+    queueContainer.appendChild(card);
+  }
+
   // Navigation
   const searchLink = document.getElementById("searchLink");
   const listenLink = document.getElementById("listenLink");
   const searchContainer = document.querySelector(".search-container");
   const mainContainer = document.querySelector(".main-container");
   const playerContainer = document.querySelector(".player-container");
-  const queueContainer = document.querySelector(".queue");
 
   searchLink.addEventListener("click", navigateToSearch);
   listenLink.addEventListener("click", navigateToPlayer);
@@ -558,9 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
           setLoadingState(false);
           updateTimeDisplay();
           progress.style.width =
-            player.duration > 0
-              ? `${(time / player.duration) * 100}%`
-              : "0%";
+            player.duration > 0 ? `${(time / player.duration) * 100}%` : "0%";
         },
         { once: true },
       );
