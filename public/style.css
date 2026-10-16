@@ -54,7 +54,7 @@ body {
 /* Search Container */
 .search-container {
     position: absolute;
-    top: 60px;
+    top: 75px;
     left: 20px;
     display: flex;
 }
@@ -136,7 +136,8 @@ button:hover {
     display: flex;
     flex-direction: row;
     width: 100%;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 75px);
+    margin-top: 20px;
 }
 
 .main-container {
